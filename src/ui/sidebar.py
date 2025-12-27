@@ -13,7 +13,6 @@ def sidebar_file_uploader() -> Optional[bytes]:
     )
     # 先頭行を列名として扱うかどうかのチェックボックス
     st.sidebar.markdown('---')
-    st.sidebar.checkbox('先頭行を列名（ヘッダー）として扱う', value=True, key='use_header')
     return uploaded
 
 def sidebar_data_shape(df):

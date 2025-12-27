@@ -24,26 +24,22 @@ def main() -> None:
 
     if uploaded is not None:
         try:
-            # サイドバーのチェックボックス値を取得
-            use_header = st.session_state.get('use_header', True)
             # ファイルは毎回再読み込みすると、ユーザーが行った変換（列名変更など）が失われる。
             # そのため、以下の条件のいずれかでのみ再読込する:
             # - セッションに df が存在しない
             # - アップロードされたファイル名が前回読み込んだものと異なる
-            # - ヘッダ設定（先頭行をヘッダ利用）が変更された
             need_load = False
             if st.session_state.get('df') is None:
                 need_load = True
             elif st.session_state.get('file_name') != uploaded.name:
                 need_load = True
-            elif st.session_state.get('loaded_use_header') != use_header:
-                need_load = True
 
             if need_load:
-                header_opt = 0 if use_header else None
+                # 常に先頭行をヘッダとして読み込む
+                header_opt = 0
                 if uploaded.name.endswith('.csv'):
                     df = data_io.load_csv(uploaded, header=header_opt)
-                    hist_str = f"df = pd.read_csv('{uploaded.name}', header={'0' if use_header else 'None'})"
+                    hist_str = f"df = pd.read_csv('{uploaded.name}', header=0)"
                     st.session_state['history'].append(hist_str)
                 elif uploaded.name.endswith('.parquet'):
                     df = data_io.load_parquet(uploaded)
@@ -53,7 +49,6 @@ def main() -> None:
                     df = None
                 st.session_state['df'] = df
                 st.session_state['file_name'] = uploaded.name
-                st.session_state['loaded_use_header'] = use_header
         except Exception as e:
             st.session_state['df'] = None
             st.error(f"データ読み込みエラー: {e}")
@@ -66,7 +61,20 @@ def main() -> None:
         st.session_state['df'] = None
         st.session_state['file_name'] = ''
         st.session_state['history'] = []
-        st.experimental_rerun()
+        # Streamlit のバージョン差異に備え、互換的に再実行を試みる
+        try:
+            st.experimental_rerun()
+        except AttributeError:
+            try:
+                from streamlit.runtime.scriptrunner import RerunException
+                raise RerunException()
+            except Exception:
+                try:
+                    from streamlit.runtime.scriptrunner.script_runner import RerunException as _Rerun
+                    raise _Rerun()
+                except Exception:
+                    # 最悪の場合は実行を停止して再実行を促す
+                    st.stop()
 
     # サイドバー：ダウンロードボタン
     if st.session_state['df'] is not None:

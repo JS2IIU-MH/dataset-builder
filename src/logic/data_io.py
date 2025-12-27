@@ -45,7 +45,11 @@ def preview_df(df: pd.DataFrame, head: int = 5, tail: int = 0) -> pd.DataFrame:
 
 def export_csv(df: pd.DataFrame) -> bytes:
     """DataFrameをCSVバイト列に変換"""
-    return df.to_csv(index=False).encode('utf-8')
+    # 明示的にヘッダーを有効にし、Excelでの文字化け対策として UTF-8 with BOM を使う
+    df2 = df.copy()
+    # カラム名が数値等の場合でも文字列にしてヘッダ行として出力されるようにする
+    df2.columns = [str(c) for c in df2.columns]
+    return df2.to_csv(index=False, header=True).encode('utf-8-sig')
 
 def export_parquet(df: pd.DataFrame) -> bytes:
     """DataFrameをParquetバイト列に変換"""
