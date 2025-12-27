@@ -4,6 +4,8 @@ forms.py
 """
 import streamlit as st
 from typing import List
+import pandas as pd
+import re
 
 
 def cleaning_form(df, num_cols: List[str], obj_cols: List[str], cat_cols: List[str], date_cols: List[str]):
@@ -86,3 +88,84 @@ def feature_engineering_form(df, num_cols: List[str], obj_cols: List[str], cat_c
         if st.button("日付特徴量抽出実行", key="fe_date_btn"):
             st.session_state['df'] = st.session_state['feature'].extract_date_features(st.session_state['df'], col5)
             st.success("日付特徴量を抽出しました")
+
+
+def render_data_preview_with_header_input(df: pd.DataFrame, key_prefix: str = "preview") -> pd.DataFrame:
+    """データプレビューと、ヘッダがない場合に手動で列名を入力できるUIを提供する。
+    戻り値はプレビュー用に列名が反映された DataFrame。セッションに `preview_df` を保存する。
+    """
+    st.subheader("列名の確認")
+    # 簡易的なヘッダ推定: 現在のカラム名に 'Unnamed' が含まれているか、整数の RangeIndex であればヘッダなしとみなす
+    cols = df.columns
+    likely_header = not any(str(c).startswith("Unnamed") for c in cols) and not all(isinstance(c, (int,)) for c in cols)
+    use_header = st.checkbox("1行目を列名として使う", value=likely_header, key=f"{key_prefix}_use_header")
+
+    if use_header:
+        # もし現在のカラムが自動付与の整数インデックスやUnnamedの場合、先頭行をヘッダに昇格する
+        if any(str(c).startswith("Unnamed") for c in cols) or all(isinstance(c, (int,)) for c in cols):
+            if df.shape[0] >= 1:
+                df2 = df.copy()
+                df2.columns = df2.iloc[0].astype(str)
+                df2 = df2.iloc[1:].reset_index(drop=True)
+            else:
+                df2 = df.copy()
+        else:
+            df2 = df.copy()
+        st.dataframe(df2.head(10))
+        st.session_state['preview_df'] = df2
+        # プレビューで先頭行をヘッダに昇格した場合、メインの df も更新して他タブ（EDA等）に反映する
+        st.session_state['df'] = df2
+        return df2
+
+    # ヘッダなしモード: ユーザーに列名を入力させる
+    num_cols = df.shape[1]
+    st.info("列名がないデータとして扱います。各列の名前を入力してください。")
+    default_names = [f"column_{i+1}" for i in range(num_cols)]
+
+    # プレビュー表示用: チェックがOFFの時点で仮の列名を付けて表示する
+    df_preview = df.copy()
+    df_preview.columns = default_names
+    st.dataframe(df_preview.head(10))
+
+    # 入力欄の初期値は既にセッションにある user_column_names を優先
+    existing = st.session_state.get('user_column_names')
+    initial_names = existing if existing and len(existing) == num_cols else default_names
+
+    names = []
+    cols_ui = st.columns(3)
+    for i in range(num_cols):
+        col_ui = cols_ui[i % 3]
+        key_name = f"{key_prefix}_col_{i}"
+        init_val = st.session_state.get(key_name, initial_names[i])
+        val = col_ui.text_input(f"列{i+1}", value=init_val, key=key_name)
+        names.append(val or default_names[i])
+
+    pasted = st.text_area("カンマまたは改行で列名をまとめて貼り付け（任意）", key=f"{key_prefix}_paste")
+    if pasted:
+        pasted_list = [x.strip() for x in re.split(r"[,\n\r]+", pasted) if x.strip()]
+        if len(pasted_list) == num_cols:
+            names = pasted_list
+            for i, n in enumerate(names):
+                st.session_state[f"{key_prefix}_col_{i}"] = n
+        else:
+            st.warning("貼り付けた列名の数が列数と一致しません。")
+
+    # バリデーション
+    if len(set(names)) != len(names):
+        st.error("列名が重複しています。異なる名前を入力してください。")
+
+    apply_btn = st.button("列名を適用", key=f"{key_prefix}_apply")
+    if apply_btn and len(set(names)) == len(names):
+        df2 = df.copy()
+        df2.columns = names
+        st.session_state['user_column_names'] = names
+        st.session_state['preview_df'] = df2
+        # 適用時はメインの df も更新しておく
+        st.session_state['df'] = df2
+        st.success("列名を適用しました。プレビューとメインデータを更新しました。")
+        st.dataframe(df2.head(10))
+        return df2
+
+    # 適用していない場合は仮のプレビューをセッションにセット
+    st.session_state['preview_df'] = df_preview
+    return df_preview

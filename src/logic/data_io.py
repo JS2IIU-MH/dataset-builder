@@ -2,22 +2,34 @@
 data_io.py
 データ入出力（CSV/Parquet読込・書出し）、プレビュー生成ロジック
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import pandas as pd
 import streamlit as st
 import io
 
 @st.cache_data
-def load_csv(file: io.BytesIO, encoding: Optional[str] = None, header: Optional[int] = 0) -> pd.DataFrame:
+def load_csv(file: io.BytesIO, encoding: Optional[str] = None, use_header: bool = True,
+             column_names: Optional[List[str]] = None, header: Optional[int] = 0) -> pd.DataFrame:
     """CSVファイルをDataFrameとして読み込む
     Args:
         file: アップロードされたファイルオブジェクト
         encoding: 文字コード（省略時は自動判定）
-        header: 先頭行をヘッダーとして扱う場合は0、データとして扱う場合はNone
+        use_header: 古い呼び出しで使われる場合のフラグ（Trueなら先頭行をヘッダとして扱う）
+        column_names: 手動で与えられた列名リスト（与えられた場合は header=None, names=column_names で読み込む）
+        header: 互換性のため既存コードで渡される keyword 引数（0 または None）。
+                優先順位: `column_names` -> `header` -> `use_header` の順で解釈される。
     Returns:
         DataFrame
     """
-    return pd.read_csv(file, encoding=encoding, header=header)
+    if column_names is not None:
+        return pd.read_csv(file, encoding=encoding, header=None, names=column_names)
+
+    # 既存コードが header キーワードで渡すことを許容する（例: header=None）
+    if header is not None:
+        return pd.read_csv(file, encoding=encoding, header=header)
+
+    header_val = 0 if use_header else None
+    return pd.read_csv(file, encoding=encoding, header=header_val)
 
 @st.cache_data
 def load_parquet(file: io.BytesIO) -> pd.DataFrame:

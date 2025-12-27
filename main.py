@@ -26,19 +26,34 @@ def main() -> None:
         try:
             # サイドバーのチェックボックス値を取得
             use_header = st.session_state.get('use_header', True)
-            header_opt = 0 if use_header else None
-            if uploaded.name.endswith('.csv'):
-                df = data_io.load_csv(uploaded, header=header_opt)
-                hist_str = f"df = pd.read_csv('{uploaded.name}', header={'0' if use_header else 'None'})"
-                st.session_state['history'].append(hist_str)
-            elif uploaded.name.endswith('.parquet'):
-                df = data_io.load_parquet(uploaded)
-                st.session_state['history'].append(f"df = pd.read_parquet('{uploaded.name}')")
-            else:
-                st.error("対応していないファイル形式です")
-                df = None
-            st.session_state['df'] = df
-            st.session_state['file_name'] = uploaded.name
+            # ファイルは毎回再読み込みすると、ユーザーが行った変換（列名変更など）が失われる。
+            # そのため、以下の条件のいずれかでのみ再読込する:
+            # - セッションに df が存在しない
+            # - アップロードされたファイル名が前回読み込んだものと異なる
+            # - ヘッダ設定（先頭行をヘッダ利用）が変更された
+            need_load = False
+            if st.session_state.get('df') is None:
+                need_load = True
+            elif st.session_state.get('file_name') != uploaded.name:
+                need_load = True
+            elif st.session_state.get('loaded_use_header') != use_header:
+                need_load = True
+
+            if need_load:
+                header_opt = 0 if use_header else None
+                if uploaded.name.endswith('.csv'):
+                    df = data_io.load_csv(uploaded, header=header_opt)
+                    hist_str = f"df = pd.read_csv('{uploaded.name}', header={'0' if use_header else 'None'})"
+                    st.session_state['history'].append(hist_str)
+                elif uploaded.name.endswith('.parquet'):
+                    df = data_io.load_parquet(uploaded)
+                    st.session_state['history'].append(f"df = pd.read_parquet('{uploaded.name}')")
+                else:
+                    st.error("対応していないファイル形式です")
+                    df = None
+                st.session_state['df'] = df
+                st.session_state['file_name'] = uploaded.name
+                st.session_state['loaded_use_header'] = use_header
         except Exception as e:
             st.session_state['df'] = None
             st.error(f"データ読み込みエラー: {e}")
@@ -79,7 +94,8 @@ def main() -> None:
     with tab1:
         st.header("データプレビュー")
         if st.session_state['df'] is not None:
-            st.dataframe(data_io.preview_df(st.session_state['df'], head=5, tail=5))
+            import src.ui.forms as forms
+            forms.render_data_preview_with_header_input(st.session_state['df'], key_prefix="main_preview")
         else:
             st.info("サイドバーからデータファイルをアップロードしてください")
 
@@ -123,6 +139,9 @@ def main() -> None:
             cat_cols = df.select_dtypes(include=['category']).columns.tolist()
             date_cols = df.select_dtypes(include=['datetime']).columns.tolist()
             forms.cleaning_form(df, num_cols, obj_cols, cat_cols, date_cols)
+            # フォーム操作で `st.session_state['df']` が更新される可能性があるため
+            # 最新の DataFrame をセッションから取得してプレビュー表示する
+            df = st.session_state.get('df', df)
             st.dataframe(df)
         else:
             st.info("データをアップロードしてください")
@@ -139,6 +158,9 @@ def main() -> None:
             cat_cols = df.select_dtypes(include=['category']).columns.tolist()
             date_cols = df.select_dtypes(include=['datetime']).columns.tolist()
             forms.feature_engineering_form(df, num_cols, obj_cols, cat_cols, date_cols)
+            # フォームでエンコーディング等を実行すると `st.session_state['df']` が更新されるため
+            # 最新の DataFrame を取得してプレビュー表示する
+            df = st.session_state.get('df', df)
             st.dataframe(df)
         else:
             st.info("データをアップロードしてください")
