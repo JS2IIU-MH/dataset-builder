@@ -1,0 +1,10 @@
+[server]
+#
+# Default: false unless (1) we are on a Linux box where DISPLAY is unset, or
+# (2) we are running in the Streamlit Atom plugin.
+headless = false
+
+# Max size, in megabytes, for files uploaded with the file_uploader.
+#
+# Default: 200
+maxUploadSize = 1024
