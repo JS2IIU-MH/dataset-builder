@@ -1,4 +1,5 @@
 import streamlit as st
+import uuid
 from src.ui import sidebar
 from src.logic import data_io
 
@@ -15,6 +16,9 @@ def main() -> None:
         st.session_state['file_name'] = ''
     if 'history' not in st.session_state:
         st.session_state['history'] = []  # 各処理の履歴（コード生成用）
+    # セッション固有の識別子（キャッシュ分離に使用）
+    if 'session_uid' not in st.session_state:
+        st.session_state['session_uid'] = str(uuid.uuid4())
 
     st.set_page_config(page_title="データ前処理アプリ", layout="wide")
     st.title("機械学習データ前処理アプリ")
@@ -38,11 +42,11 @@ def main() -> None:
                 # 常に先頭行をヘッダとして読み込む
                 header_opt = 0
                 if uploaded.name.endswith('.csv'):
-                    df = data_io.load_csv(uploaded, header=header_opt)
+                    df = data_io.load_csv(uploaded, header=header_opt, session_id=st.session_state['session_uid'])
                     hist_str = f"df = pd.read_csv('{uploaded.name}', header=0)"
                     st.session_state['history'].append(hist_str)
                 elif uploaded.name.endswith('.parquet'):
-                    df = data_io.load_parquet(uploaded)
+                    df = data_io.load_parquet(uploaded, session_id=st.session_state['session_uid'])
                     st.session_state['history'].append(f"df = pd.read_parquet('{uploaded.name}')")
                 else:
                     st.error("対応していないファイル形式です")
@@ -141,7 +145,6 @@ def main() -> None:
         if df is not None:
             import src.logic.cleaning as cleaning
             import src.ui.forms as forms
-            st.session_state['cleaning'] = cleaning
             num_cols = df.select_dtypes(include=['number']).columns.tolist()
             obj_cols = df.select_dtypes(include=['object']).columns.tolist()
             cat_cols = df.select_dtypes(include=['category']).columns.tolist()
@@ -160,7 +163,6 @@ def main() -> None:
         if df is not None:
             import src.logic.feature_engineering as feature
             import src.ui.forms as forms
-            st.session_state['feature'] = feature
             num_cols = df.select_dtypes(include=['number']).columns.tolist()
             obj_cols = df.select_dtypes(include=['object']).columns.tolist()
             cat_cols = df.select_dtypes(include=['category']).columns.tolist()
