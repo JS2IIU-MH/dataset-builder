@@ -7,4 +7,5 @@ headless = false
 # Max size, in megabytes, for files uploaded with the file_uploader.
 #
 # Default: 200
-maxUploadSize = 1024
+# 大きくしすぎると複数接続があった場合に動作不安定になる可能性あり
+maxUploadSize = 512
