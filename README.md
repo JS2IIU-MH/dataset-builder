@@ -23,17 +23,17 @@
 
 1. 仮想環境を作成・有効化（例: `venv`）
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    ```
 
 2. 開発依存が必要な場合:
 
-```bash
-pip install -r dev-requirements.txt
-```
+    ```bash
+    pip install -r dev-requirements.txt
+    ```
 
 ## 実行（ローカル）
 
