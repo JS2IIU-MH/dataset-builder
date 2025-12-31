@@ -2,6 +2,7 @@ import streamlit as st
 import uuid
 from src.ui import sidebar
 from src.logic import data_io
+from src.utils.logger import init_logger, get_logger
 
 def main() -> None:
     """
@@ -19,6 +20,11 @@ def main() -> None:
     # セッション固有の識別子（キャッシュ分離に使用）
     if 'session_uid' not in st.session_state:
         st.session_state['session_uid'] = str(uuid.uuid4())
+
+    # ロガー初期化（アプリ起動一回）
+    init_logger()
+    logger = get_logger(__name__, session_uid=st.session_state['session_uid'])
+    logger.info("App started, session=%s", st.session_state['session_uid'])
 
     st.set_page_config(page_title="データ前処理アプリ", layout="wide")
     st.title("機械学習データ前処理アプリ")
@@ -53,8 +59,11 @@ def main() -> None:
                     df = None
                 st.session_state['df'] = df
                 st.session_state['file_name'] = uploaded.name
+                if df is not None:
+                    logger.info("Loaded file %s rows=%d cols=%d", uploaded.name, df.shape[0], df.shape[1])
         except Exception as e:
             st.session_state['df'] = None
+            logger.exception("データ読み込みエラー: %s", e)
             st.error(f"データ読み込みエラー: {e}")
 
     # サイドバー：データサイズ表示
@@ -65,6 +74,7 @@ def main() -> None:
         st.session_state['df'] = None
         st.session_state['file_name'] = ''
         st.session_state['history'] = []
+        logger.info("Session reset: session=%s", st.session_state.get('session_uid'))
         # Streamlit のバージョン差異に備え、互換的に再実行を試みる
         try:
             st.experimental_rerun()
@@ -97,7 +107,12 @@ def main() -> None:
                 file_name="processed.parquet",
                 mime="application/octet-stream"
             )
+            try:
+                logger.info("Prepared exports: csv_bytes=%d parquet_bytes=%d", len(csv_bytes), len(parquet_bytes))
+            except Exception:
+                logger.info("Prepared exports")
         except Exception as e:
+            logger.exception("エクスポートエラー: %s", e)
             st.error(f"エクスポートエラー: {e}")
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([

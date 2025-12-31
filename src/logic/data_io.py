@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 import io
 import hashlib
+from src.utils.logger import get_logger
 
 def _compute_sha256(data: bytes) -> str:
     """バイト列の SHA256 チェックサムを返す"""
@@ -63,8 +64,14 @@ def load_csv(file: io.BytesIO, encoding: Optional[str] = None, use_header: bool 
 
     checksum = _compute_sha256(file_bytes)
     sid = session_id or ''
-    return _load_csv_from_bytes(file_bytes, checksum, sid, encoding=encoding,
+    df = _load_csv_from_bytes(file_bytes, checksum, sid, encoding=encoding,
                                 use_header=use_header, column_names=column_names, header=header)
+    logger = get_logger(__name__, session_uid=sid)
+    try:
+        logger.info("load_csv: file_bytes=%d checksum=%s rows=%d cols=%d", len(file_bytes), checksum, df.shape[0], df.shape[1])
+    except Exception:
+        logger.info("load_csv: file_bytes=%d checksum=%s", len(file_bytes), checksum)
+    return df
 
 @st.cache_data
 def _load_parquet_from_bytes(file_bytes: bytes, checksum: str, session_id: str) -> pd.DataFrame:
@@ -89,7 +96,13 @@ def load_parquet(file: io.BytesIO, session_id: Optional[str] = None) -> pd.DataF
 
     checksum = _compute_sha256(file_bytes)
     sid = session_id or ''
-    return _load_parquet_from_bytes(file_bytes, checksum, sid)
+    df = _load_parquet_from_bytes(file_bytes, checksum, sid)
+    logger = get_logger(__name__, session_uid=sid)
+    try:
+        logger.info("load_parquet: bytes=%d checksum=%s rows=%d cols=%d", len(file_bytes), checksum, df.shape[0], df.shape[1])
+    except Exception:
+        logger.info("load_parquet: bytes=%d checksum=%s", len(file_bytes), checksum)
+    return df
 
 @st.cache_data
 def preview_df(df: pd.DataFrame, head: int = 5, tail: int = 0) -> pd.DataFrame:
