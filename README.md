@@ -53,6 +53,26 @@ streamlit run main.py
 - UI は `src/ui/` に分離しており、ロジックは `src/logic/` に置いてあります。変更は該当ファイルを編集してください。
 - 詳細アーキテクチャは [documents/architecture.md](documents/architecture.md) を参照。
 
+### ログの記録について
+
+本アプリではセッション識別子（`session_uid`）を各ブラウザセッションに割り当て、すべてのアプリ内ログに含める運用を推奨します。これにより、アップロード→前処理→エクスポート等の一連処理を横断的に追跡でき、デバッグやサポート対応が容易になります。
+
+**実装方針**:
+
+- `get_session_uid()` のようなヘルパーで `uuid.uuid4()` を生成し、`st.session_state` に一度だけ保存する（参照実装: [src/utils/session.py](src/utils/session.py)）。
+- ロギングには `LoggerAdapter` または `extra` を用いて `session_uid` を自動付与する（参照実装: [src/utils/logger.py](src/utils/logger.py)）。
+- ログフォーマット例: `%(asctime)s %(levelname)s %(session_uid)s %(message)s`。
+
+**運用・保管**:
+
+- ログのローテーション（`RotatingFileHandler` 等）、ログレベル、保持期間は運用ポリシーに従って設定してください。
+- ログを外部送信（S3、ELK、Datadog 等）する場合は転送時の暗号化・アクセス制御を行い、どのログを転送するかを明確にドキュメント化してください。
+
+**注意点**:
+
+- `session_uid` に個人情報（PII）を含めないこと。外部送信や解析時には利用目的・保持期間を明示し、必要に応じて利用者の同意を得てください。
+- 本番運用ではログ量や保持期間に応じたコストとプライバシーリスクを評価してください。
+
 ## サンプルデータ
 
 - `sample-data/iris/iris.csv` を例にデータ構造や利用方法を確認できます。
