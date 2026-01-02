@@ -2,6 +2,8 @@
 
 このリポジトリは、Streamlit を用いたデータ読み込み・前処理・可視化アプリケーションのサンプル実装です。
 
+![dataset-builder screenshot](documents/screenshot.png)
+
 ## 目的
 
 - 大規模なCSV/Parquetデータを読み込み、クレンジング、簡易EDA、特徴量エンジニアリング、可視化、エクスポートを行うためのツール群を提供します。
