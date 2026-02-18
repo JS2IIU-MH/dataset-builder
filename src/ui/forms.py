@@ -6,6 +6,7 @@ import streamlit as st
 from typing import List
 import pandas as pd
 import re
+from streamlit_sortables import sort_items
 
 
 def cleaning_form(df, num_cols: List[str], obj_cols: List[str], cat_cols: List[str], date_cols: List[str]):
@@ -177,3 +178,51 @@ def render_data_preview_with_header_input(df: pd.DataFrame, key_prefix: str = "p
     # 適用していない場合は仮のプレビューをセッションにセット
     st.session_state['preview_df'] = df_preview
     return df_preview
+
+
+def render_column_reorder(df: pd.DataFrame, key_prefix: str = "reorder") -> None:
+    """ドラッグ&ドロップで列の順序を変更するUIを提供する
+    
+    Args:
+        df: 対象のDataFrame
+        key_prefix: セッション状態のキープレフィックス
+    """
+    st.subheader("列の順序変更（ドラッグ&ドロップ）")
+    
+    if df is None or df.empty:
+        st.info("データがありません")
+        return
+    
+    st.info("💡 列名をドラッグ&ドロップして順序を変更できます。変更後は「適用」ボタンを押してください。")
+    
+    # 現在の列名リストを取得
+    current_columns = list(df.columns)
+    
+    # ドラッグ&ドロップ可能なリストを表示
+    sorted_columns = sort_items(
+        items=current_columns,
+        key=f"{key_prefix}_sortable_columns"
+    )
+    
+    # 順序が変更されたかチェック
+    order_changed = sorted_columns != current_columns
+    
+    if order_changed:
+        st.warning(f"列の順序が変更されました。「適用」ボタンを押して確定してください。")
+        
+        # 変更後の順序をプレビュー表示
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**変更前:**")
+            st.code("\n".join(f"{i+1}. {col}" for i, col in enumerate(current_columns)))
+        with col2:
+            st.write("**変更後:**")
+            st.code("\n".join(f"{i+1}. {col}" for i, col in enumerate(sorted_columns)))
+    
+    # 適用ボタン
+    if st.button("列の順序を適用", key=f"{key_prefix}_apply_btn", disabled=not order_changed):
+        import src.logic.data_io as data_io
+        # 列の順序を変更
+        st.session_state['df'] = data_io.reorder_columns(st.session_state['df'], sorted_columns)
+        st.success("✅ 列の順序を変更しました！")
+        st.rerun()

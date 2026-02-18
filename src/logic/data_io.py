@@ -124,3 +124,22 @@ def export_parquet(df: pd.DataFrame) -> bytes:
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     return buf.getvalue()
+
+def reorder_columns(df: pd.DataFrame, new_column_order: List[str]) -> pd.DataFrame:
+    """列の順序を変更する
+    
+    Args:
+        df: 対象のDataFrame
+        new_column_order: 新しい列の順序のリスト
+        
+    Returns:
+        列の順序が変更されたDataFrame
+    """
+    if not new_column_order:
+        return df
+    
+    # 新しい順序に含まれない列があればそのまま後ろに追加
+    missing_cols = [col for col in df.columns if col not in new_column_order]
+    final_order = new_column_order + missing_cols
+    
+    return df[final_order]
