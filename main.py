@@ -123,6 +123,15 @@ def main() -> None:
         if st.session_state['df'] is not None:
             import src.ui.forms as forms
             forms.render_data_preview_with_header_input(st.session_state['df'], key_prefix="main_preview")
+            
+            # 列の順序変更UI
+            st.divider()
+            forms.render_column_reorder(st.session_state['df'], key_prefix="main_reorder")
+            
+            # データのプレビュー表示
+            st.divider()
+            st.subheader("データプレビュー")
+            st.dataframe(st.session_state['df'].head(20))
         else:
             st.info("サイドバーからデータファイルをアップロードしてください")
 
